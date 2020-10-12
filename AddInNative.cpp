@@ -468,57 +468,39 @@ long CAddInNative::findName(const wchar_t* names[], const wchar_t* name, int Cou
 }
 //---------------------------------------------------------------------------//
 
-LRESULT CALLBACK KeyboardProc(int nCode,WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
-
 	wchar_t output[300];
-
-	bool	QueueEnabled	= true;
-
+	bool QueueEnabled = true;
     if (nCode == HC_ACTION || nCode == HC_NOREMOVE) 
 	{
-		IComponentBase *	pObject	= 0;
-
+		IComponentBase * pObject = 0;
 		pObject	= listOfObjects.GetNextObjectByName(pObject, L"KeyboardHook");
 		while (pObject)
 		{
-
 			CAddInNative *pm = dynamic_cast< CAddInNative* >(pObject);
-
-			int Action	= (pm->m_FirstInterception ? HC_NOREMOVE : HC_ACTION);
-			
-			if (pm->m_HookEnabled && (nCode == Action))
+			if (pm->m_HookEnabled)
+			{
+				unsigned int TransitionState = (((DWORD)lParam >> 31) & 0x01);
+				if (TransitionState == 0)
 				{
-
-				bool KeyPressed	= !((DWORD)lParam & 0x40000000);
-
-				if ((pm->m_EventOnKeyPressed && KeyPressed) || (!pm->m_EventOnKeyPressed && !KeyPressed))
-				{
-
-					unsigned int RepeatCount	= (DWORD) lParam & 0xFFFF;
-					unsigned int ScanCode		= ((DWORD) lParam >> 16) & 0xFF;
-					unsigned int ExtendedKey		= (((DWORD) lParam >> 24) & 0x01);
-					unsigned int PreviousKeyState	= (((DWORD) lParam >> 30) & 0x01);
-					unsigned int VirtualKey			= wParam;
-
+					unsigned int RepeatCount = (DWORD) lParam & 0xFFFF;
+					unsigned int ScanCode = ((DWORD) lParam >> 16) & 0xFF;
+					unsigned int ExtendedKey = (((DWORD) lParam >> 24) & 0x01);
+					unsigned int PreviousKeyState = (((DWORD) lParam >> 30) & 0x01);
+					unsigned int VirtualKey	= wParam;
 					BYTE keystatebuff[256];
 					wchar_t SymbolString[10];
-
 					::wmemset(SymbolString,0,10);
-
 					if (::GetKeyboardState(keystatebuff))
 					{
-
-						unsigned int ExtScanCode	= ScanCode;
-						unsigned int flags			= (((DWORD) lParam >> 29) & 0x0001) ^ 0x0001;
-						int numsymbol	= ::ToUnicode(VirtualKey, ExtScanCode, keystatebuff, SymbolString, 10, flags);
+						unsigned int ExtScanCode = ScanCode;
+						unsigned int flags= (((DWORD) lParam >> 29) & 0x0001) ^ 0x0001;
+						int numsymbol = ::ToUnicode(VirtualKey, ExtScanCode, keystatebuff, SymbolString, 10, flags);
 						if (numsymbol == 10)
 							::wmemset(SymbolString,0,10);
-
 					}
-
 					ULONG	ReturnCode	= 0;
-
 					if (::GetKeyState(VK_LSHIFT) & 0x80)
 						ReturnCode = ReturnCode | 0x1;
 					ReturnCode <<= 1;
@@ -540,25 +522,19 @@ LRESULT CALLBACK KeyboardProc(int nCode,WPARAM wParam, LPARAM lParam)
 					ReturnCode = ReturnCode | ExtendedKey;
 					ReturnCode <<= 8;
 					ReturnCode = ReturnCode | (VirtualKey & 0x00FF);
-
-					int StringLength	= swprintf_s(output, 300, L"%05u%s", ReturnCode, SymbolString);
-
+					int StringLength = swprintf_s(output, 300, L"%05u%s", ReturnCode, SymbolString);
 					pm->SendEvent(output);
-
 				}
-				QueueEnabled	= QueueEnabled & !pm->m_KeyboardLocked;
+				QueueEnabled = QueueEnabled & !pm->m_KeyboardLocked;
 			}
 			pObject	= listOfObjects.GetNextObjectByName(pObject, L"KeyboardHook");
 		}
-
 	}
-
 	if (nCode < 0 || QueueEnabled)
 	{
 		LRESULT RetVal = CallNextHookEx( CAddInNative::m_KeyBoardHook, nCode, wParam, lParam );
 	    return  RetVal;
 	}
-
 	return -1;
 
 }
