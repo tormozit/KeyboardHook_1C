@@ -1,0 +1,7 @@
+LIBRARY    "KHook1C.dll"
+
+EXPORTS
+GetClassObject
+DestroyObject
+GetClassNames
+
